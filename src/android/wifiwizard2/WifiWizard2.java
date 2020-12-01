@@ -527,6 +527,8 @@ public class WifiWizard2 extends CordovaPlugin {
 
           @Override
           public void onUnavailable() {
+            connectivityManager.bindProcessToNetwork(null);
+            connectivityManager.unregisterNetworkCallback(networkCallback);
             callbackContext.error("User canceled WIFI connection");
           }
         };
