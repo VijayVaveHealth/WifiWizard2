@@ -225,7 +225,7 @@ public class WifiWizard2 extends CordovaPlugin {
 
     // Actions that DO require WiFi to be enabled
     if (action.equals(ADD_NETWORK)) {
-      this.add(callbackContext, data);
+      this.add(callbackContext, data);+
     } else if (action.equals(IS_CONNECTED_TO_INTERNET)) {
       this.canConnectToInternet(callbackContext, true);
     } else if (action.equals(CAN_CONNECT_TO_INTERNET)) {
@@ -523,6 +523,11 @@ public class WifiWizard2 extends CordovaPlugin {
                 }
               },
             5000);
+          }
+
+          @Override
+          public void onUnavailable() {
+            callbackContext.error("User canceled WIFI connection");
           }
         };
 
