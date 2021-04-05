@@ -36,6 +36,8 @@
         }
     }
 
+    freeifaddrs(interfaces);
+
     return [cset countForObject:@"awdl0"] > 1 ? YES : NO;
 }
 
@@ -50,6 +52,13 @@
 	options = [command argumentAtIndex:0];
 	ssidString = [options objectForKey:@"Ssid"];
 	passwordString = [options objectForKey:@"Password"];
+
+    if([self isVPNOn]) {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Using VPN"];
+        [self.commandDelegate sendPluginResult:pluginResult
+                                    callbackId:command.callbackId];
+        return;
+    }
 
 	if (@available(iOS 11.0, *)) {
 	    if (ssidString && [ssidString length]) {
@@ -386,6 +395,59 @@ static NSArray<NSData *> * addressesOfDiscardServiceOnBroadcastCapableInterfaces
             (void) sendto(sock, &message, sizeof(message), MSG_DONTWAIT, address.bytes, (socklen_t) address.length);
         }
     }
+}
+
+- (BOOL)isVPNOn
+{
+    BOOL flag = NO;
+    NSString *version = [UIDevice currentDevice].systemVersion;
+    // need two ways to judge this.
+    if (version.doubleValue >= 9.0)
+    {
+        NSDictionary *dict = CFBridgingRelease(CFNetworkCopySystemProxySettings());
+        NSArray *keys = [dict[@"__SCOPED__"] allKeys];
+        for (NSString *key in keys) {
+            if ([key rangeOfString:@"tap"].location != NSNotFound ||
+                [key rangeOfString:@"tun"].location != NSNotFound ||
+                [key rangeOfString:@"ipsec"].location != NSNotFound ||
+                [key rangeOfString:@"ppp"].location != NSNotFound){
+                flag = YES;
+                break;
+            }
+        }
+    }
+    else
+    {
+        struct ifaddrs *interfaces = NULL;
+        struct ifaddrs *temp_addr = NULL;
+        int success = 0;
+
+        // retrieve the current interfaces - returns 0 on success
+        success = getifaddrs(&interfaces);
+        if (success == 0)
+        {
+            // Loop through linked list of interfaces
+            temp_addr = interfaces;
+            while (temp_addr != NULL)
+            {
+                NSString *string = [NSString stringWithFormat:@"%s" , temp_addr->ifa_name];
+                if ([string rangeOfString:@"tap"].location != NSNotFound ||
+                    [string rangeOfString:@"tun"].location != NSNotFound ||
+                    [string rangeOfString:@"ipsec"].location != NSNotFound ||
+                    [string rangeOfString:@"ppp"].location != NSNotFound)
+                {
+                    flag = YES;
+                    break;
+                }
+                temp_addr = temp_addr->ifa_next;
+            }
+        }
+
+        // Free memory
+        freeifaddrs(interfaces);
+    }
+
+    return flag;
 }
 
 

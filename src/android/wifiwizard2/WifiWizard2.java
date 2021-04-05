@@ -15,7 +15,8 @@
 package wifiwizard2;
 
 import org.apache.cordova.*;
-
+import java.net.SocketException;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Future;
 import java.lang.InterruptedException;
@@ -374,6 +375,12 @@ public class WifiWizard2 extends CordovaPlugin {
   private boolean add(CallbackContext callbackContext, JSONArray data) {
 
     Log.d(TAG, "WifiWizard2: add entered.");
+    boolean isVPN = checkVpn();
+    if(isVPN) {
+      Log.d(TAG, "Using VPN");
+      callbackContext.error("Using VPN");
+      return false;
+    }
     // Initialize the WifiConfiguration object
     WifiConfiguration wifi = new WifiConfiguration();
 
@@ -524,6 +531,13 @@ public class WifiWizard2 extends CordovaPlugin {
               },
             5000);
           }
+
+          @Override
+          public void onUnavailable() {
+            connectivityManager.bindProcessToNetwork(null);
+            connectivityManager.unregisterNetworkCallback(networkCallback);
+            callbackContext.error("failed to get user's approval");
+          }
         };
 
         WifiNetworkSpecifier.Builder builder = new WifiNetworkSpecifier.Builder();
@@ -585,6 +599,24 @@ public class WifiWizard2 extends CordovaPlugin {
       Log.d(TAG, e.getMessage());
       return false;
     }
+  }
+
+  private boolean checkVpn() {
+    String iface = "";
+    try {
+      for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+        if (networkInterface.isUp())
+          iface = networkInterface.getName();
+        Log.d("DEBUG", "IFACE NAME: " + iface);
+        if ( iface.contains("tun") || iface.contains("ppp") || iface.contains("pptp")) {
+          return true;
+        }
+      }
+    } catch (SocketException e1) {
+      e1.printStackTrace();
+    }
+
+    return false;
   }
 
   /**
